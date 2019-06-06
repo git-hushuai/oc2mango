@@ -33,11 +33,11 @@ extern void yyerror(const char *s);
 %token <identifier> AND OR POWER SUB ADD DIV ASTERISK AND_ASSIGN OR_ASSIGN POWER_ASSIGN SUB_ASSIGN ADD_ASSIGN DIV_ASSIGN ASTERISK_ASSIGN INCREMENT DECREMENT
 SHIFTLEFT SHIFTRIGHT MOD ASSIGN MOD_ASSIGN
 %token <identifier> _self _super _nil _NULL _YES _NO 
-%token <identifier>  _Class _id _void _BOOL _SEL _CHAR _SHORT _INT _LONG _LLONG  _UCHAR _USHORT _UINT _ULONG  _ULLONG _DOUBLE _FLOAT _instancetype
+%token <identifier>  _Class _id _void _BOOL _SEL _CHAR _SHORT _INT _LONG _LLONG  UNSIGNED SIGNED _DOUBLE _FLOAT _instancetype _UNION
 %token <identifier> INTETER_LITERAL DOUBLE_LITERAL SELECTOR 
-%type  <identifier> class_property_type declare_left_attribute declare_right_attribute
+%type  <identifier> class_property_type 
 %type  <identifier> whole_identifier TYPE_IDENTIFER
-%type  <identifier> global_define  struct_declare enum_declare enum_identifier_list typedef_declare
+%type  <identifier> global_define  union_declare struct_declare enum_declare enum_identifier_list typedef_declare
 %type  <declare>  protocol_declare class_declare protocol_list class_private_varibale_declare
 %type  <declare>  class_property_declare method_declare
 %type  <declare>  type_specified declare_variable func_declare_parameter func_declare_parameter_list
@@ -70,6 +70,7 @@ definition:
 	    ;
 global_define:
             struct_declare
+          | union_declare
           | enum_declare
           | typedef_declare
           | CLASS_DECLARE TYPE_IDENTIFER SEMICOLON
@@ -85,7 +86,9 @@ global_define:
               [LibAst addGlobalStatements:imp];
           }
           ;
-
+union_declare:
+            _struct IDENTIFIER LC class_private_varibale_declare RC
+            ;
 struct_declare:
             _struct IDENTIFIER LC class_private_varibale_declare RC
             ;
@@ -135,6 +138,9 @@ typedef_declare:
                 addTypeDefSymbol(makeTypeSpecial(TypeEnum,_typeId $6),_typeId $6);
             }
             | TYPEDEF _struct LC class_private_varibale_declare RC TYPE_IDENTIFER SEMICOLON{
+                addTypeDefSymbol(makeTypeSpecial(TypeStruct,_typeId $6),_typeId $6);
+            }
+            | TYPEDEF _UNION LC class_private_varibale_declare RC TYPE_IDENTIFER SEMICOLON{
                 addTypeDefSymbol(makeTypeSpecial(TypeStruct,_typeId $6),_typeId $6);
             }
             ;
@@ -317,26 +323,7 @@ declare_variable:
             ;
 
 
-declare_left_attribute:
-            EXTERN
-            | STATIC
-            | CONST
-            | NONNULL
-            | NULLABLE
-            | _STRONG
-            | _WEAK
-            | _BLOCK
-            | _BRIDGE
-            | _BRIDGE_RETAINED
-            | _BRIDGE_TRANSFER
-            ;
-declare_right_attribute:
-            _NONNULL
-            | _NULLABLE
-            | CONST
-            | _AUTORELEASE
-            | _UNUSED
-            ;
+
 
 func_declare_parameter: 
             declare_variable
@@ -1114,107 +1101,55 @@ primary_expression:
             $$ = _vretained makeValue(OCValueBOOL);
         }
         ;
-
+type_attribute:
+            EXTERN
+            | STATIC
+            | CONST
+            | NONNULL
+            | NULLABLE
+            | _STRONG
+            | _WEAK
+            | _BLOCK
+            | _BRIDGE
+            | _BRIDGE_RETAINED
+            | _BRIDGE_TRANSFER
+            | _NONNULL
+            | _NULLABLE
+            | _AUTORELEASE
+            | _UNUSED
+            | TYPEOF LP expression RP
+            | __TYPEOF LP expression RP
+            | _CHAR
+            | _SHORT
+            | UNSIGNED
+            | SIGNED
+            | _INT
+            | _LONG
+            | _LLONG
+            | _DOUBLE
+            | _FLOAT
+            | _Class
+            | _BOOL
+            | _void
+            | _instancetype
+            | TYPE
+            | _id
+            | _struct TYPE
+            | _enum TYPE
+            | _UNION TYPE
+            ;
 type_specified:
-            declare_left_attribute type_specified
+            type_attribute
+            | type_specified type_attribute
             {
-                $$ = $2;
+                $$ = $1;
             }
             | type_specified LT type_specified GT
-            | type_specified declare_right_attribute
-            | TYPEOF LP expression RP
-            {
-                $$ = _vretained makeTypeSpecial(TypeObject,@"typeof");
-            }
-            | __TYPEOF LP expression RP
-            {
-                $$ = _vretained makeTypeSpecial(TypeObject,@"typeof");
-            }
-            | _UCHAR
-            {
-                 $$ = _vretained makeTypeSpecial(TypeUChar);
-            }
-            | _USHORT
-            {
-                $$ = _vretained makeTypeSpecial(TypeUShort);
-            }
-            | _UINT
-            {
-                $$ = _vretained makeTypeSpecial(TypeUInt);
-            }
-            | _ULONG
-            {
-                $$ = _vretained makeTypeSpecial(TypeULong);
-            }
-            | _ULLONG
-            {
-                $$ = _vretained makeTypeSpecial(TypeULongLong);
-            }
-            | _CHAR
-            {
-                $$ = _vretained makeTypeSpecial(TypeChar);
-            }
-            | _SHORT
-            {
-                $$ = _vretained makeTypeSpecial(TypeShort);
-            }
-            | _INT
-            {
-                $$ = _vretained makeTypeSpecial(TypeInt);
-            }
-            | _LONG
-            {
-                $$ = _vretained makeTypeSpecial(TypeLong);
-            }
-            | _LLONG
-            {
-                $$ = _vretained makeTypeSpecial(TypeLongLong);
-            }
-            | _DOUBLE
-            {
-                $$ = _vretained makeTypeSpecial(TypeDouble);
-            }
-            | _FLOAT
-            {
-                $$ = _vretained makeTypeSpecial(TypeFloat);
-            }
-            | _Class
-            {
-                $$ = _vretained makeTypeSpecial(TypeClass);
-            }
-            | _BOOL
-            {
-                $$ = _vretained makeTypeSpecial(TypeBOOL);
-            }
-            | _void
-            {
-                $$ = _vretained makeTypeSpecial(TypeVoid);
-            }
-            | _instancetype
-            {
-                $$ = _vretained makeTypeSpecial(TypeId);
-            }
             | error ";"
-            | TYPE
-            {
-                $$ = _vretained makeTypeSpecial(TypeObject,(__bridge NSString *)$1);
-            }
-            | _id
-            {
-                $$ = _vretained makeTypeSpecial(TypeId);
-            }
             // void (^)(int a, int b)
             | type_specified LP POWER RP LP func_declare_parameter_list RP
             {
                 $$ = _vretained makeTypeSpecial(TypeBlock);
-            }
-            | _struct TYPE
-            {
-                $$ = _vretained makeTypeSpecial(TypeStruct,_typeId $2);
-            }
-            | _enum TYPE
-            {
-                $$ = _vretained makeTypeSpecial(TypeEnum,_typeId $2);
             }
             | type_specified ASTERISK
             {
@@ -1231,8 +1166,8 @@ void yyerror(const char *s){
     extern char linebuf[500];
     extern char *yytext;
     NSString *text = [NSString stringWithUTF8String:yytext];
-    NSString *line = [NSString stringWithUTF8String:linebuf];
-    NSRange range = [line rangeOfString:text];
+    NSString *lineStr = [NSString stringWithUTF8String:linebuf];
+    NSRange range = [lineStr rangeOfString:text];
     NSMutableString *str = [NSMutableString string];
     if(range.location != NSNotFound){
         for (int i = 0; i < range.location; i++){
@@ -1244,7 +1179,12 @@ void yyerror(const char *s){
     }else{
         str = text;
     }
-    NSString *errorInfo = [NSString stringWithFormat:@"\n------yyerror------\n%@\n%@\n error: %s\n-------------------\n",line,str,s];
+    NSString *errorInfo = [NSString stringWithFormat:
+    @"\n------yyerror------\n"
+    @"line num:%lu\n"
+    @"%@\n"
+    @"%@\n"
+    @"error: %s\n-------------------\n",yylineno,lineStr,str,s];
     OCParser.error = errorInfo;
     log(OCParser.error);
 }

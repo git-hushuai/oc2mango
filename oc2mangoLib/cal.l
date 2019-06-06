@@ -45,7 +45,10 @@
 <INITIAL>"#" { BEGIN POUNDKEY; }
 <POUNDKEY>.* ;
 <POUNDKEY>\n { BEGIN INITIAL; }
-
+<POUNDKEY>\n.* {
+    strncpy(linebuf,yytext + 1,sizeof(linebuf));
+    yyless(1);
+}
 <INITIAL>"," { return COMMA ;}
 <INITIAL>";" { return SEMICOLON; }
 <INITIAL>"(" { return LP; }
@@ -114,16 +117,7 @@
 <INITIAL>"nonnull" { yylval.identifier =(__bridge_retained void *)@"nonnull"; return NONNULL; }
 <INITIAL>"nullable" { yylval.identifier =(__bridge_retained void *)@"nullable"; return NULLABLE; }
 
-<INITIAL>"extern" { yylval.identifier =(__bridge_retained void *)@"extern"; return EXTERN; }
-<INITIAL>"static" { yylval.identifier =(__bridge_retained void *)@"static"; return STATIC; }
-<INITIAL>"const" { yylval.identifier =(__bridge_retained void *)@"const"; return CONST; }
-<INITIAL>"_Nonnull" { yylval.identifier =(__bridge_retained void *)@"_Nonnull"; return _NONNULL; }
-<INITIAL>"_Nullable" { yylval.identifier =(__bridge_retained void *)@"_Nullable"; return _NULLABLE; }
-<INITIAL>"__autoreleasing" { yylval.identifier =(__bridge_retained void *)@"__autoreleasing"; return _AUTORELEASE; }
 
-<INITIAL>"__strong" { yylval.identifier =(__bridge_retained void *)@"__strong"; return _STRONG; }
-<INITIAL>"__weak"  { yylval.identifier =(__bridge_retained void *)@"__weak"; return _WEAK; }
-<INITIAL>"__block" { yylval.identifier =(__bridge_retained void *)@"__block"; return _BLOCK; }
 <INITIAL>"__bridge" { yylval.identifier =(__bridge_retained void *)@"__bridge"; return _BRIDGE; }
 <INITIAL>"__bridge_transfer" { yylval.identifier =(__bridge_retained void *)@"__bridge"; return _BRIDGE_TRANSFER; }
 <INITIAL>"__bridge_retained" { yylval.identifier =(__bridge_retained void *)@"__bridge"; return _BRIDGE_RETAINED; }
@@ -166,45 +160,33 @@
 <INITIAL>"YES" { TypeReturn(YES); }
 <INITIAL>"NO" { TypeReturn(NO); }
 
-<INITIAL>"unsigned char" { TypeReturn(UCHAR); }
-<INITIAL>"unsigned short" { TypeReturn(USHORT); }
-<INITIAL>"unsigned int" { TypeReturn(UINT); }
-<INITIAL>"unsigned long" { TypeReturn(ULONG); }
-<INITIAL>"unsigned long long" { TypeReturn(ULLONG); }
-<INITIAL>"NSUInteger" { TypeReturn(ULONG); }
-
 <INITIAL>"sizeof" { TypeReturn(sizeof); }
 <INITIAL>"typeof" { return TYPEOF; }
 <INITIAL>"__typeof__" { return __TYPEOF; }
 <INITIAL>"enum" { TypeReturn(enum); }
 <INITIAL>"struct" { TypeReturn(struct); }
+<INITIAL>"union" { return _UNION; }
+
+<INITIAL>"extern" { yylval.identifier =(__bridge_retained void *)@"extern"; return EXTERN; }
+<INITIAL>"static" { yylval.identifier =(__bridge_retained void *)@"static"; return STATIC; }
+<INITIAL>"const" { yylval.identifier =(__bridge_retained void *)@"const"; return CONST; }
+<INITIAL>"_Nonnull" { yylval.identifier =(__bridge_retained void *)@"_Nonnull"; return _NONNULL; }
+<INITIAL>"_Nullable" { yylval.identifier =(__bridge_retained void *)@"_Nullable"; return _NULLABLE; }
+<INITIAL>"__autoreleasing" { yylval.identifier =(__bridge_retained void *)@"__autoreleasing"; return _AUTORELEASE; }
+
+<INITIAL>"__strong" { yylval.identifier =(__bridge_retained void *)@"__strong"; return _STRONG; }
+<INITIAL>"__weak"  { yylval.identifier =(__bridge_retained void *)@"__weak"; return _WEAK; }
+<INITIAL>"__block" { yylval.identifier =(__bridge_retained void *)@"__block"; return _BLOCK; }
+
+<INITIAL>"unsigned" { return UNSIGNED; }
+<INITIAL>"signed" { return SIGNED; }
 <INITIAL>"char" { TypeReturn(CHAR); }
 <INITIAL>"short" { TypeReturn(SHORT); }
 <INITIAL>"int" { TypeReturn(INT); }
 <INITIAL>"long" { TypeReturn(LONG); }
 <INITIAL>"long long" { TypeReturn(LLONG); }
-<INITIAL>"NSInteger" { TypeReturn(LONG); }
-
-<INITIAL>"int8_t" { TypeReturn(CHAR); }
-<INITIAL>"int16_t" { TypeReturn(SHORT); }
-<INITIAL>"int32_t" { TypeReturn(INT); }
-<INITIAL>"int64_t" { TypeReturn(LLONG); }
-
-<INITIAL>"uint8" { TypeReturn(UCHAR); }
-<INITIAL>"uint16" { TypeReturn(USHORT); }
-<INITIAL>"uint32" { TypeReturn(UINT); }
-<INITIAL>"uint64" { TypeReturn(ULLONG); }
-<INITIAL>"uint8_t" { TypeReturn(UCHAR); }
-<INITIAL>"uint16_t" { TypeReturn(USHORT); }
-<INITIAL>"uint32_t" { TypeReturn(UINT); }
-<INITIAL>"uint64_t" { TypeReturn(ULLONG); }
-
-<INITIAL>"size_t" { TypeReturn(UINT); }
-
-<INITIAL>"NSTimeInterval" {return _DOUBLE; }
 <INITIAL>"double" { TypeReturn(DOUBLE); }
 <INITIAL>"float" { TypeReturn(FLOAT); }
-<INITIAL>"CGFloat" { return _DOUBLE; }
 
 <INITIAL>__attribute__[ ]*\(.*?\){2,} ;
 <INITIAL>__attribute__[ ]*\(.*?\){2,} ;
@@ -213,7 +195,6 @@
 <INITIAL>[A-Za-z_$][A-Za-z_$0-9]* {
     NSString *name = [NSString stringWithUTF8String:yytext];
     yylval.identifier =(__bridge_retained void *)name;
-
     Symbol *symbol = lookupSymbol(name);
     if (symbol){
         if (symbol.kind == SymbolKindTypeDeclare || symbol.kind == SymbolKindTypeDef){
@@ -222,17 +203,6 @@
             return VARIABLE;
         }
     }
-    if([name hasPrefix:@"NS"]
-    || [name hasPrefix:@"UI"]
-    || [name hasPrefix:@"CG"]
-    || [name hasPrefix:@"CA"]
-    || [name hasSuffix:@"Ref"]
-    || [name hasPrefix:@"dispatch"]
-    )
-    {
-        return TYPE;
-    }
-
     return IDENTIFIER;
 }
 
